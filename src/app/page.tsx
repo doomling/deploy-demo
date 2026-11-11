@@ -39,7 +39,7 @@ export default function Home() {
 
   return (
     <main className={styles.main}>
-      <h1>Mi lista de items</h1>
+      <h1>Mi lista de items pero probando CI</h1>
 
       <form action={addItem} className={styles.form}>
         <input

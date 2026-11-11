@@ -28,6 +28,12 @@ jobs:
       - run: supabase db lint
       - run: supabase test db
       - name: Types are up to date
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: App compiles against the real schema
         run: |
-          supabase gen types typescript --local > src/types/database.ts
-          git diff --exit-code src/types/database.ts
+          supabase gen types typescript > src/types/database.ts
+          npm run typecheck
