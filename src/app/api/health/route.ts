@@ -1,4 +1,5 @@
 import { connection, NextResponse } from "next/server";
+import { log } from "@/lib/log";
 import { createSupabaseClient } from "@/lib/supabase";
 
 /**
@@ -9,6 +10,7 @@ export async function GET() {
   await connection(); // siempre en el request, nunca en el build
 
   let db: "ok" | "error" = "error";
+  const started = Date.now();
 
   try {
     const supabase = createSupabaseClient();
@@ -20,10 +22,14 @@ export async function GET() {
     db = "error";
   }
 
+  const dbMs = Date.now() - started;
+  if (db === "error") log("error", "health_db_failed", { dbMs });
+
   return NextResponse.json(
     {
       status: db === "ok" ? "ok" : "degraded",
       db,
+      dbMs,
       env: process.env.VERCEL_ENV ?? "local",
       commit: process.env.VERCEL_GIT_COMMIT_SHA ?? "dev",
     },
