@@ -1,35 +1,38 @@
-"use server";
-
-import { revalidatePath } from "next/cache";
-import { parseTitle } from "@/lib/items";
+import { connection, NextResponse } from "next/server";
 import { log } from "@/lib/log";
 import { createSupabaseClient } from "@/lib/supabase";
 
-export async function addItem(formData: FormData) {
-  const parsed = parseTitle(formData.get("title"));
-  if (!parsed.ok) {
-    log("warn", "item_rejected", { reason: parsed.error });
-    return;
-  }
+/**
+ * Chequeo post-deploy: qué versión está corriendo y si la base responde.
+ * La clase de observabilidad parte de este endpoint.
+ */
+export async function GET() {
+  await connection(); // siempre en el request, nunca en el build
 
+  let db: "ok" | "error" = "error";
   const started = Date.now();
-  const supabase = createSupabaseClient();
-  const { error } = await supabase
-    .from("items")
-    .insert({ title: parsed.title });
-  const ms = Date.now() - started;
 
-  if (error) {
-    // Se registra el código y el largo del título, no el título en sí.
-    log("error", "item_insert_failed", {
-      code: error.code,
-      error: error.message,
-      titleLength: parsed.title.length,
-      ms,
-    });
-    throw new Error("No se pudo guardar el item");
+  try {
+    const supabase = createSupabaseClient();
+    const { error } = await supabase
+      .from("items")
+      .select("id", { count: "exact", head: true });
+    if (!error) db = "ok";
+  } catch {
+    db = "error";
   }
 
-  log("info", "item_inserted", { ms });
-  revalidatePath("/");
+  const dbMs = Date.now() - started;
+  if (db === "error") log("error", "health_db_failed", { dbMs });
+
+  return NextResponse.json(
+    {
+      status: db === "ok" ? "ok" : "degraded",
+      db,
+      dbMs,
+      env: process.env.VERCEL_ENV ?? "local",
+      commit: process.env.VERCEL_GIT_COMMIT_SHA ?? "dev",
+    },
+    { status: db === "ok" ? 200 : 503 },
+  );
 }
