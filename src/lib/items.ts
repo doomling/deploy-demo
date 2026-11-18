@@ -1,4 +1,4 @@
-export const TITLE_MAX_LENGTH = 80;
+export const TITLE_MAX_LENGTH = 120;
 
 export type ParsedTitle =
   | { ok: true; title: string }
